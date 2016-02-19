@@ -46,7 +46,7 @@
     
     - name: Validate ISO GPG signature
       command: gpg --verify {{ vyos_iso_local }}.asc {{ vyos_iso_local }}
-      when: gpg_uri.status == 200
+      when: False
 
     - name: Mount ISO
       mount: name={{ CD_ROOT }} src={{ vyos_iso_local }} fstype=iso9660 opts=loop,ro state=mounted
@@ -62,8 +62,11 @@
       shell: cat {{ CD_ROOT }}/live/filesystem.packages | grep ^vyatta-version | awk '{print $2}'
       register: version_string
 
+    - name: Hack a version if the version file is empty (Beryllium)
+      set_fact: version_string="999.beryllium.other"
+
     - name: Debug version string as read from ISO
-      debug: msg="This is version {{ version_string.stdout }}"
+      debug: msg="This is version {{ version_string }}"
 
     # ---- Prepare EBS disk ----
     - name: Check if EBS disk has already been modified by this playbook
@@ -94,19 +97,19 @@
 
     # ---- Install image from ISO ----
     - name: Create {{ WRITE_ROOT }} directories
-      file: path={{ WRITE_ROOT }}/boot/{{ version_string.stdout }}/live-rw state=directory
+      file: path={{ WRITE_ROOT }}/boot/{{ version_string }}/live-rw state=directory
       register: RW_DIR
 
     - name: Copy squashfs image from ISO to root partition
-      command: cp -p {{ SQUASHFS_IMAGE }} {{ WRITE_ROOT }}/boot/{{ version_string.stdout }}/{{ version_string.stdout }}.squashfs
-               creates={{ WRITE_ROOT }}/boot/{{ version_string.stdout }}/{{ version_string.stdout }}.squashfs
+      command: cp -p {{ SQUASHFS_IMAGE }} {{ WRITE_ROOT }}/boot/{{ version_string }}/{{ version_string }}.squashfs
+               creates={{ WRITE_ROOT }}/boot/{{ version_string }}/{{ version_string }}.squashfs
 
     - name: Copy boot files (kernel and initrd images) from ISO to root partition
-      shell: find {{ CD_SQUASH_ROOT }}/boot -maxdepth 1  \( -type f -o -type l \) -exec cp -dp {} {{ WRITE_ROOT }}/boot/{{ version_string.stdout }}/ \;
-             creates={{ WRITE_ROOT }}/boot/{{ version_string.stdout }}/vmlinuz
+      shell: find {{ CD_SQUASH_ROOT }}/boot -maxdepth 1  \( -type f -o -type l \) -exec cp -dp {} {{ WRITE_ROOT }}/boot/{{ version_string }}/ \;
+             creates={{ WRITE_ROOT }}/boot/{{ version_string }}/vmlinuz
 
     - name: Mount squashfs image from root partition
-      mount: name={{ READ_ROOT }} src={{ WRITE_ROOT }}/boot/{{ version_string.stdout }}/{{ version_string.stdout }}.squashfs fstype=squashfs opts=loop,ro state=mounted
+      mount: name={{ READ_ROOT }} src={{ WRITE_ROOT }}/boot/{{ version_string }}/{{ version_string }}.squashfs fstype=squashfs opts=loop,ro state=mounted
 
     - name: Set up union root for post installation tasks
       mount: name={{ INSTALL_ROOT }} src=overlayfs fstype=overlayfs opts=noatime,upperdir={{ RW_DIR.path }},lowerdir={{ READ_ROOT }} state=mounted
@@ -211,7 +214,7 @@
       mount: name={{ INSTALL_ROOT }} src=overlayfs fstype=overlayfs state=unmounted
 
     - name: Unmount {{ READ_ROOT }}
-      mount: name={{ READ_ROOT }} src={{ WRITE_ROOT }}/boot/{{ version_string.stdout }}/{{ version_string.stdout }}.squashfs fstype=squashfs state=unmounted
+      mount: name={{ READ_ROOT }} src={{ WRITE_ROOT }}/boot/{{ version_string }}/{{ version_string }}.squashfs fstype=squashfs state=unmounted
 
     - name: Unmount {{ WRITE_ROOT }}
       mount: name={{ WRITE_ROOT }} src={{ ROOT_PARTITION }} fstype={{ ROOT_FSTYPE }} state=unmounted

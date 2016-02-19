@@ -6,7 +6,7 @@
   gather_facts: False
 
   vars:
-    version_string: "{{ hostvars[groups['ec2'][0]]['version_string']['stdout'] }}"
+    version_string: "{{ hostvars[groups['ec2'][0]]['version_string'] }}"
     snapshot_description: VyOS AMI (HVM) {{ version_string }}
 
     ami_name: VyOS (HVM) {{ version_string }}
