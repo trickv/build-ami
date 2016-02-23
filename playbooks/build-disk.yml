@@ -63,7 +63,7 @@
       register: version_string
 
     - name: Hack a version if the version file is empty (Beryllium)
-      set_fact: version_string="999.beryllium.other"
+      set_fact: version_string="999.beryllium11"
 
     - name: Debug version string as read from ISO
       debug: msg="This is version {{ version_string }}"
@@ -85,7 +85,7 @@
             parted_print.stdout.find('primary') == -1
 
     - name: Create a filesystem on root partition
-      filesystem: fstype={{ ROOT_FSTYPE }} device={{ ROOT_PARTITION }}
+      filesystem: fstype={{ ROOT_FSTYPE }} device={{ ROOT_PARTITION }} opts="-L persistence"
 
     - name: Make {{ INSTALL_DRIVE }} bootable
       command: parted --script {{ INSTALL_DRIVE }} set 1 boot
@@ -97,8 +97,11 @@
 
     # ---- Install image from ISO ----
     - name: Create {{ WRITE_ROOT }} directories
-      file: path={{ WRITE_ROOT }}/boot/{{ version_string }}/live-rw state=directory
+      file: path={{ WRITE_ROOT }}/boot/{{ version_string }}/rw state=directory
       register: RW_DIR
+
+    - name: Create persistence.conf
+      template: src=templates/persistence.conf.j2 dest={{ WRITE_ROOT }}/persistence.conf mode=0644
 
     - name: Copy squashfs image from ISO to root partition
       command: cp -p {{ SQUASHFS_IMAGE }} {{ WRITE_ROOT }}/boot/{{ version_string }}/{{ version_string }}.squashfs
